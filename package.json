@@ -18,7 +18,7 @@
     "eslint": "eslint --ext js,ts --ignore-pattern 'dist/**/*' .",
     "prettier": "prettier --check ."
   },
-  "author": "i5irin",
+  "author": "i5irin <contact@i5ir.in>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/i5irin-Study/monorepo-training/issues"
