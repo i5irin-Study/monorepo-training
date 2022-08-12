@@ -1,0 +1,8 @@
+import { greet } from './greet';
+
+describe('greet', () => {
+  it('should return greetings to the given name', () => {
+    expect.assertions(1);
+    expect(greet({ name: 'i5irin' })).toBe('Hello i5irin');
+  });
+});
