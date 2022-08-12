@@ -8,8 +8,8 @@
     "url": "git@github.com:i5irin-Study/monorepo-training.git"
   },
   "keywords": [
-    "japan",
-    "tax"
+    "training",
+    "monorepo"
   ],
   "scripts": {
     "test": "jest",
