@@ -12,6 +12,7 @@
     "default": "./dist/index.cjs.js"
   },
   "scripts": {
+    "test": "jest",
     "clean": "node -e 'fs.rmSync(`dist`, {recursive:true, force:true})'",
     "build": "NODE_ENV=production rollup -c ../../rollup.config.js",
     "eslint": "eslint --ext js,ts --ignore-pattern 'dist/**/*' .",
@@ -27,5 +28,7 @@
     "url": "https://github.com/i5irin-Study/monorepo-training/issues"
   },
   "homepage": "https://github.com/i5irin-Study/monorepo-training#readme",
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ]
 }

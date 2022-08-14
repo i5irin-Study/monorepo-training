@@ -4,5 +4,5 @@
     /* Redirect output structure to the directory. */
     "outDir": "./dist",
   },
-  "include": ["src/**/*", ".eslintrc.js"],
+  "include": ["src/**/*", ".eslintrc.js", "jest.config.js"],
 }
