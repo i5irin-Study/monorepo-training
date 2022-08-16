@@ -1,0 +1,16 @@
+name: merge-check
+on:
+  - pull_request
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16.15.1
+      - uses: tj-actions/changed-files@v26.1
+        id: changed-files
+      - run: npm ci
+      - run: |
+          echo ${{ steps.changed-files.outputs.all_changed_files }} | tr ' ' '\n' | sed -nr 's/^packages\/([^\/|.]*)\/.*$/packages\/\1/p' | sort | uniq | xargs -I VAR npm run test -w VAR
