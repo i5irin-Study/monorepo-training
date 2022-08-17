@@ -9,8 +9,9 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16.15.1
-      - uses: tj-actions/changed-files@v26.1
-        id: changed-files
       - run: npm ci
       - run: |
-          echo ${{ steps.changed-files.outputs.all_changed_files }} | tr ' ' '\n' | sed -nr 's/^packages\/([^\/|.]*)\/.*$/packages\/\1/p' | sort | uniq | xargs -I VAR npm run test -w VAR
+          git diff --name-only $(git rev-parse main) $(git rev-parse HEAD) |
+          sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
+          sort -u |
+          xargs -I WORKSPACE npm run test -w WORKSPACE
