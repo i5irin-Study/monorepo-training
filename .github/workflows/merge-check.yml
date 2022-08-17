@@ -9,6 +9,8 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16.15.1
+      - run: echo head_ref ${{ github.head_ref }}
+      - run: echo base_ref ${{ github.base_ref }}
       - run: npm ci
       - run: |
           git diff --name-only $(git rev-parse main) $(git rev-parse HEAD) |
