@@ -12,7 +12,12 @@ jobs:
             # Prepare enough depth for diffs with master
             git fetch --depth="$(( commits + 1 ))"
           fi
-      - run: git branch
-      - run: git branch -a
-      - run: git rev-parse "remotes/origin/${{github.base_ref}}"
-      - run: git rev-parse "remotes/origin/${{github.head_ref}}"
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16.15.1
+      - run: npm ci
+      - run: |
+          git diff --name-only $(git rev-parse "remotes/origin/${{github.base_ref}}") $(git rev-parse "remotes/origin/${{github.head_ref}}") |
+          sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
+          sort -u |
+          xargs -I WORKSPACE npm run test -w WORKSPACE
