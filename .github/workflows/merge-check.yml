@@ -14,5 +14,5 @@ jobs:
           fi
       - run: git branch
       - run: git branch -a
-      - run: git rev-parse main
-      - run: git rev-parse HEAD
+      - run: git rev-parse "remotes/origin/${{github.base_ref}}"
+      - run: git rev-parse "remotes/origin/${{github.head_ref}}"
