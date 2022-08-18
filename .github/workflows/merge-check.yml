@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: 16.15.1
           cache: 'npm'
-        run: npm ci
+      - run: npm ci
       - run: |
           git diff --name-only $(git rev-parse "remotes/origin/${{github.base_ref}}") $(git rev-parse "remotes/origin/${{github.head_ref}}") |
           sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
