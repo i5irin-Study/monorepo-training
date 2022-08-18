@@ -13,12 +13,9 @@ jobs:
             git fetch --depth="$(( commits + 1 ))"
           fi
       - uses: actions/setup-node@v3
-        id: setup_node_id
         with:
           node-version: 16.15.1
           cache: 'npm'
-      # - run: npm ci
-      - if: ${{ steps.setup_node_id.outputs.cache-hit != 'true' }}
         run: npm ci
       - run: |
           git diff --name-only $(git rev-parse "remotes/origin/${{github.base_ref}}") $(git rev-parse "remotes/origin/${{github.head_ref}}") |
