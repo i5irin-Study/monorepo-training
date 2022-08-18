@@ -15,9 +15,13 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16.15.1
-      - run: npm ci
-      - run: |
-          git diff --name-only $(git rev-parse "remotes/origin/${{github.base_ref}}") $(git rev-parse "remotes/origin/${{github.head_ref}}") |
-          sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
-          sort -u |
-          xargs -I WORKSPACE npm run test -w WORKSPACE
+          cache: 'npm'
+      # - run: npm ci
+      - if: ${{ steps.setup_node_id.outputs.cache-hit != 'true' }}
+        run: npm ci
+      - run: npm ls --depth=0
+      # - run: |
+      #     git diff --name-only $(git rev-parse "remotes/origin/${{github.base_ref}}") $(git rev-parse "remotes/origin/${{github.head_ref}}") |
+      #     sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
+      #     sort -u |
+      #     xargs -I WORKSPACE npm run test -w WORKSPACE
