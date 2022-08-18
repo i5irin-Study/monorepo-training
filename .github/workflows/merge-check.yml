@@ -8,16 +8,13 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/get-pr-info
         id: get_sha
-      - run: echo ${{ github.head_ref }}
-      - run: echo ${{ steps.get_sha.outputs.head_sha }}
-      - run: echo ${{ steps.get_sha.outputs.base_sha }}
-      # - uses: actions/setup-node@v3
-      #   with:
-      #     node-version: 16.15.1
-      #     cache: 'npm'
-      # - run: npm ci
-      # - run: |
-      #     git diff --name-only $(git rev-parse "remotes/origin/${{github.base_ref}}") $(git rev-parse "remotes/origin/${{github.head_ref}}") |
-      #     sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
-      #     sort -u |
-      #     xargs -I WORKSPACE npm run test -w WORKSPACE
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16.15.1
+          cache: 'npm'
+      - run: npm ci
+      - run: |
+          git diff --name-only ${{ steps.get_sha.outputs.base_sha }} ${{ steps.get_sha.outputs.head_sha }} |
+          sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
+          sort -u |
+          xargs -I WORKSPACE npm run test -w WORKSPACE
