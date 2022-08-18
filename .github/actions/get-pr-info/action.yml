@@ -1,0 +1,26 @@
+name: 'Get PR Information'
+description: 'Get the SHA of the PR merge destination and source with the minimum necessary Fetch'
+outputs:
+  head_sha:
+    description: 'SHA of the source branch'
+    value: ${{ steps.get-sha.outputs.head_sha }}
+  base_sha:
+    description: 'SHA of the destination branch'
+    value: ${{ steps.get-sha.outputs.base_sha }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Fetch necessary commits
+      run: |
+        commits=${{ github.event.pull_request.commits }}
+        if [[ -n "$commits" ]]; then
+          git fetch --depth="$(( commits + 1 ))"
+        fi
+      shell: bash
+    - name: Get SHA
+      id: get-sha
+      run: |
+        echo ${{ github.head_ref }}
+        echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
+        echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+      shell: bash
