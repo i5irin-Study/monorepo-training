@@ -5,7 +5,7 @@ import { terser } from 'rollup-plugin-terser';
 import path from 'path';
 
 const PACKAGE_ROOT_PATH = process.cwd();
-console.log(PACKAGE_ROOT_PATH);
+
 export default [
   {
     input: path.join(PACKAGE_ROOT_PATH, 'src', 'index.ts'),

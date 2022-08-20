@@ -5,7 +5,4 @@ const message = greet({
   name: 'i5irin',
 });
 
-// eslint-disable-next-line no-console
-console.log(message);
-
 export default message;
