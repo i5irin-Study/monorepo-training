@@ -2,6 +2,7 @@
   "extends": "./tsconfig.base.json",
   "include": [
     ".eslintrc.js",
+    ".eslintrc.base.js",
     ".prettierrc.js",
     "commitlint.config.js",
     "rollup.config.js",
