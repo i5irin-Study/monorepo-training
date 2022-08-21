@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Redirect output structure to the directory. */
+    "outDir": "./dist",
+    "paths": {
+      "@i5irin-monorepo-training/*": ["./../*/src"],
+    },
+  },
+  "include": ["src/**/*", ".eslintrc.js", "jest.config.js"],
+}

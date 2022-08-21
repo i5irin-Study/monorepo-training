@@ -10,8 +10,6 @@
     "declaration": true,
     /* Do not emit compiled outputs, becouse Babel will transpile the source. */
     "emitDeclarationOnly": true,
-    /* Redirect output structure to the directory. */
-    "outDir": "./dist",
     /* Enable all strict type-checking options. */
     "strict": true,
     /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
@@ -21,6 +19,4 @@
     /* Disallow inconsistently-cased references to the same file. */
     "forceConsistentCasingInFileNames": true,
   },
-  /* Specify the path including the files to be processed. */
-  "include": ["src/**/*"],
 }

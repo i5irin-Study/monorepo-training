@@ -4,24 +4,23 @@ import { terser } from 'rollup-plugin-terser';
 
 import path from 'path';
 
+const PACKAGE_ROOT_PATH = process.cwd();
+
 export default [
   {
-    input: path.join('src', 'index.ts'),
+    input: path.join(PACKAGE_ROOT_PATH, 'src', 'index.ts'),
     output: [
       {
         file: 'dist/index.cjs.js',
         format: 'cjs',
-        sourcemap: true,
       },
       {
         file: 'dist/index.esm.js',
         format: 'esm',
-        sourcemap: true,
       },
       {
         name: 'monorepo-training',
         file: 'dist/index.umd.js',
-        sourcemap: true,
         format: 'umd',
       },
     ],

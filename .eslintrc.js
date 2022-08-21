@@ -1,15 +1,7 @@
 module.exports = {
-  extends: ['airbnb-base', 'airbnb-typescript/base', 'prettier'],
+  extends: ['./.eslintrc.base.js'],
   parserOptions: {
     project: './tsconfig.eslint.json',
   },
-  ignorePatterns: ['!.prettierrc.js'],
-  overrides: [
-    // Configs for Jest.
-    {
-      plugins: ['jest'],
-      files: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
-      extends: ['plugin:jest/all'],
-    },
-  ],
+  ignorePatterns: ['!.prettierrc.js', 'packages/*'],
 };

@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Redirect output structure to the directory. */
+    "outDir": "./dist",
+  },
+  "include": ["src/**/*", ".eslintrc.js", "jest.config.js"],
+}
