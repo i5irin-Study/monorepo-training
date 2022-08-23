@@ -1,0 +1,98 @@
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      package-name:
+        description: 'Package name to be release'
+        required: true
+      package-version:
+        description: 'Version to be release'
+        required: true
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Get today
+        id: get-date
+        env:
+          TZ: 'Asia/Tokyo'
+        run: echo "::set-output name=today::$(date +'%Y-%m-%d')"
+      - name: Get package versions
+        id: get-version
+        run: |
+          latest_version=$(git tag |
+          sed -rn "s/${{ github.event.inputs.package-name }}\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p" |
+          sort -Vr |
+          head -1)
+          echo "::set-output name=latest-sha::$latest_version"
+      - name: Get updates information
+        id: get-updates
+        run: |
+          commit_titles=$(git log --pretty=format:'%s:%at' "${{ github.event.inputs.package-name }}/v${{ steps.get-version.outputs.latest-sha }}...${{ github.sha }}" -- "packages/${{ github.event.inputs.package-name }}" |
+          sort -t ':' -k 1,1 -k 3,3 |
+          sed -nr 's/:[0-9]*$//p')
+          feature_updates=$(echo "$commit_titles" |
+          sed -nr 's/^chore(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
+          sed 's/^/+ /g' |
+          sed ':start $!{N; b start}; s/\n/\\n/g')
+          fix_updates=$(echo "$commit_titles" |
+          sed -nr 's/^test(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
+          sed 's/^/+ /g' |
+          sed ':start $!{N; b start}; s/\n/\\n/g')
+          echo "::set-output name=features::$feature_updates"
+          echo "::set-output name=fixes::$fix_updates"
+      - name: Generate changelog
+        id: generate-changelog
+        run: |
+          if [ -n "${{ steps.get-updates.outputs.features }}" ]; then
+            features_note="### 🚀 Features\n${{ steps.get-updates.outputs.features }}"
+          fi
+          if [ -n "${{ steps.get-updates.outputs.fixes }}" ]; then
+            fixes_note="### 🐛 Bug Fixes\n${{ steps.get-updates.outputs.fixes }}"
+          fi
+          header="${{ github.event.inputs.package-name }}/v${{ github.event.inputs.package-version }} - ${{ steps.get-date.outputs.today }}"
+          body="$features_note\n\n$fixes_note"
+          echo "::set-output name=header::$header"
+          echo "::set-output name=body::$body"
+      - name: Update CHANGELOG.md
+        run: |
+          changelog="## ${{ steps.generate-changelog.outputs.header }}\n\n${{ steps.generate-changelog.outputs.body }}\n"
+          sed -ir "/insert\-new\-changelog\-here/a $changelog" ./CHANGELOG.md
+      - name: Update package.json
+        run: |
+          current_version=$(node -p "require('./packages/${{ github.event.inputs.package-name }}/package.json').version")
+          sed -i "s/$current_version/${{ github.event.inputs.package-version }}/" "./packages/${{ github.event.inputs.package-name }}/package.json"
+      - name: Commit and Push
+        env:
+          TZ: 'Asia/Tokyo'
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ./CHANGELOG.md "./packages/${{ github.event.inputs.package-name }}/package.json"
+          git commit --author='i5irin <contact@i5ir.in>' -m 'chore(release): update version and changelog' --no-verify
+          git tag "${{ github.event.inputs.package-name }}/v${{ github.event.inputs.package-version }}"
+          git push --follow-tags
+      - name: Draft GitHub Release
+        uses: actions/github-script@v6
+        env:
+          CHANGELOG_HEADER: ${{ steps.generate-changelog.outputs.header }}
+          CHANGELOG_BODY: ${{ steps.generate-changelog.outputs.body }}
+          PACKAGE: ${{ github.event.inputs.package-name }}
+          TAG: 'v${{ github.event.inputs.package-version }}'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { CHANGELOG_HEADER, CHANGELOG_BODY, TAG, PACKAGE } = process.env;
+            github.rest.repos.createRelease({
+              name: CHANGELOG_HEADER,
+              draft: true,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: TAG,
+              body: CHANGELOG_BODY.replace(/\\n/g, '\r\n'),
+            });
