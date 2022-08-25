@@ -12,7 +12,7 @@ jobs:
   get-tags:
     runs-on: ubuntu-latest
     outputs:
-      latest: ${{ steps.get-latest.outputs.version }}
+      prev-version-sha: ${{ steps.get-latest.outputs.prev-version-sha }}
       new: ${{ steps.get-new.outputs.version }}
     if: github.ref == 'refs/heads/main'
     steps:
@@ -27,7 +27,14 @@ jobs:
           sed -rn "s/${{ github.event.inputs.package-name }}\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p" |
           sort -Vr |
           head -1)
-          echo "::set-output name=version::${{ github.event.inputs.package-name }}/v$latest_version"
+          if [ -n "$latest_version" ]; then
+            echo "::set-output name=version::${{ github.event.inputs.package-name }}/v$latest_version"
+            prev_tag_sha=$(git rev-parse "${{ github.event.inputs.package-name }}/v$latest_version")
+            echo "::set-output name=prev-version-sha::$prev_tag_sha"
+          else
+            initial_sha=$(git rev-list --max-parents=0 HEAD)
+            echo "::set-output name=prev-version-sha::$initial_sha"
+          fi
       - name: Get new package version
         id: get-new
         run: |
@@ -54,7 +61,7 @@ jobs:
       - name: Get updates information
         id: get-updates
         run: |
-          commit_titles=$(git log --pretty=format:'%s:%at' "${{ needs.get-tags.outputs.latest }}...${{ github.sha }}" -- "packages/${{ github.event.inputs.package-name }}" |
+          commit_titles=$(git log --pretty=format:'%s:%at' "${{ needs.get-tags.outputs.prev-version-sha }}...${{ github.sha }}" -- "packages/${{ github.event.inputs.package-name }}" |
           sort -t ':' -k 1,1 -k 3,3 |
           sed -nr 's/:[0-9]*$//p')
           feature_updates=$(echo "$commit_titles" |
@@ -67,6 +74,7 @@ jobs:
           sed ':start $!{N; b start}; s/\n/\\n/g')
           echo "::set-output name=features::$feature_updates"
           echo "::set-output name=fixes::$fix_updates"
+          test -n "$commit_titles"
       - name: Generate changelog
         id: generate-changelog
         run: |
