@@ -12,7 +12,8 @@ jobs:
   get-tags:
     runs-on: ubuntu-latest
     outputs:
-      latest-version: ${{ steps.get-latest.outputs.version }}
+      latest: ${{ steps.get-latest.outputs.version }}
+      new: ${{ steps.get-new.outputs.version }}
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
@@ -26,10 +27,19 @@ jobs:
           sed -rn "s/${{ github.event.inputs.package-name }}\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p" |
           sort -Vr |
           head -1)
-          echo "::set-output name=version::$latest_version"
-  publish:
+          echo "::set-output name=version::${{ github.event.inputs.package-name }}/v$latest_version"
+      - name: Get new package version
+        id: get-new
+        run: |
+          new_version="${{ github.event.inputs.package-name }}/v${{ github.event.inputs.package-version }}"
+          echo "::set-output name=version::$new_version"
+
+  bump-version:
     runs-on: ubuntu-latest
     needs: get-tags
+    outputs:
+      changelog-header: ${{ steps.generate-changelog.outputs.header }}
+      changelog-body: ${{ steps.generate-changelog.outputs.body }}
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
@@ -44,7 +54,7 @@ jobs:
       - name: Get updates information
         id: get-updates
         run: |
-          commit_titles=$(git log --pretty=format:'%s:%at' "${{ github.event.inputs.package-name }}/v${{ needs.get-tags.outputs.latest-version }}...${{ github.sha }}" -- "packages/${{ github.event.inputs.package-name }}" |
+          commit_titles=$(git log --pretty=format:'%s:%at' "${{ needs.get-tags.outputs.latest }}...${{ github.sha }}" -- "packages/${{ github.event.inputs.package-name }}" |
           sort -t ':' -k 1,1 -k 3,3 |
           sed -nr 's/:[0-9]*$//p')
           feature_updates=$(echo "$commit_titles" |
@@ -66,7 +76,7 @@ jobs:
           if [ -n "${{ steps.get-updates.outputs.fixes }}" ]; then
             fixes_note="### 🐛 Bug Fixes\n${{ steps.get-updates.outputs.fixes }}"
           fi
-          header="${{ github.event.inputs.package-name }}/v${{ github.event.inputs.package-version }} - ${{ steps.get-date.outputs.today }}"
+          header="${{ needs.get-tags.outputs.new }} - ${{ steps.get-date.outputs.today }}"
           body="$features_note\n\n$fixes_note"
           echo "::set-output name=header::$header"
           echo "::set-output name=body::$body"
@@ -88,22 +98,30 @@ jobs:
           git commit --author='i5irin <contact@i5ir.in>' -m 'chore(release): update version and changelog' --no-verify
           git tag "${{ github.event.inputs.package-name }}/v${{ github.event.inputs.package-version }}"
           git push --follow-tags
-      - name: Draft GitHub Release
+
+  publish-github:
+    runs-on: ubuntu-latest
+    needs: [bump-version, get-tags]
+    steps:
+      - name: Format Release Note
+        id: format
+        run: |
+          encoded=$(echo "${{ needs.bump-version.outputs.changelog-body }}" | sed -r 's/\\n/\\r\\n/g')
+          echo "::set-output name=encoded::$encoded"
+      - name: GitHub Release
         uses: actions/github-script@v6
         env:
-          CHANGELOG_HEADER: ${{ steps.generate-changelog.outputs.header }}
-          CHANGELOG_BODY: ${{ steps.generate-changelog.outputs.body }}
-          PACKAGE: ${{ github.event.inputs.package-name }}
-          TAG: 'v${{ github.event.inputs.package-version }}'
+          CHANGELOG_HEADER: ${{ needs.bump-version.outputs.changelog-header }}
+          CHANGELOG_BODY: ${{ steps.format.outputs.encoded }}
+          TAG: ${{ needs.get-tags.outputs.new }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { CHANGELOG_HEADER, CHANGELOG_BODY, TAG, PACKAGE } = process.env;
+            const { CHANGELOG_HEADER, CHANGELOG_BODY, TAG } = process.env;
             github.rest.repos.createRelease({
               name: CHANGELOG_HEADER,
-              draft: true,
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: TAG,
-              body: CHANGELOG_BODY.replace(/\\n/g, '\r\n'),
+              body: CHANGELOG_BODY.replace(/\\r\\n/g, '\r\n'),
             });
