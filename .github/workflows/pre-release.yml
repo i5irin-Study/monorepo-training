@@ -118,6 +118,8 @@ jobs:
           git tag "${{ github.event.inputs.package-name }}/v${{ github.event.inputs.package-version }}"
           git push "https://i5irin:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" HEAD:"${{ needs.get-tags.outputs.release-branch }}" --follow-tags
       - name: Create release PR
-        run: gh pr create -B "main" -t "Release ${{ needs.get-tags.outputs.new }}" -b ""
+        run: |
+          cat .git/refs/remotes/origin/release/greet/v0.0.2
+          gh pr create -B "main" -t "Release ${{ needs.get-tags.outputs.new }}" -b ""
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
