@@ -102,8 +102,8 @@ jobs:
         env:
           TZ: 'Asia/Tokyo'
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git config user.name i5irin
+          git config user.email contact@i5ir.in
           git add ./CHANGELOG.md "./packages/${{ github.event.inputs.package-name }}/package.json"
           git commit --author='i5irin <contact@i5ir.in>' -m 'chore(release): update version and changelog' --no-verify
           git tag "${{ github.event.inputs.package-name }}/v${{ github.event.inputs.package-version }}"
