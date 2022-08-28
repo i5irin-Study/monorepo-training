@@ -2,7 +2,7 @@
 import { greet } from '@i5irin-monorepo-training/greet';
 
 const message = greet({
-  name: 'i5irin',
+  name: 'i5irinさん',
 });
 
 export default message;
