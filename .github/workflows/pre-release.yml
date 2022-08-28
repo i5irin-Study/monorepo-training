@@ -1,93 +1,56 @@
 name: pre-release
 on:
   workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package name to be release'
+        required: true
 jobs:
-  collect-updates:
+  determine-next:
     runs-on: ubuntu-latest
     outputs:
-      update-packages: ${{ steps.get-updates.outputs.package-shas }}
+      version: ${{ steps.get-next.outputs.version }}
+      feature-log: ${{ steps.get-next.outputs.feature }}
+      fix-log: ${{ steps.get-next.outputs.fix }}
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Get package shas
-        id: package-shas
+      - name: Get preview version SHA
+        id: get-prev
         env:
-          TZ: 'Asia/Tokyo'
+          PACKAGE: ${{ github.event.inputs.package }}
         run: |
-          packages=$(find packages -mindepth 1 -maxdepth 1 -type d | sed 's/^packages\///')
-          package_shas=()
-          IFS=$'\n';
-          for package in $(echo "$packages")
-          do
-            latest_version=$(git tag |
-            sed -rn "s/$package\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p" |
-            sort -Vr |
-            head -1)
-            if [ -n "$latest_version" ]; then
-              prev_tag_sha=$(git rev-parse "$package/v$latest_version")
-              package_shas+=("$package $prev_tag_sha")
-            else
-              initial_sha=$(git rev-list --max-parents=0 HEAD)
-              package_shas+=("$package $initial_sha")
-            fi
-          done
-          package_shas=$(echo "${package_shas[*]}" | sed ':start $!{N; b start}; s/\n/\\n/g')
-          echo "::set-output name=package-shas::$package_shas"
-
-      - name: Get updated packages
-        id: get-updates
+          latest_version=$(git tag |
+          sed -rn "s/$PACKAGE\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p" |
+          sort -Vr |
+          head -1)
+          prev_version_sha=$(git rev-list --max-parents=0 HEAD)
+          if [ -n "$latest_version" ]; then
+            prev_version_sha=$(git rev-parse "$PACKAGE/v$latest_version")
+          fi
+          echo "::set-output name=sha::$prev_version_sha"
+      - name: Get next version
+        id: get-next
+        env:
+          PACKAGE: ${{ github.event.inputs.package }}
         run: |
-          decoded=$(echo "${{ steps.package-shas.outputs.package-shas }}" | sed -r 's/\\n/\n/g')
-          updated_packages=()
-          while IFS= read -r package_sha; do
-            package=$(echo "$package_sha" | cut -d " " -f 1)
-            sha=$(echo "$package_sha" | cut -d " " -f 2)
-            commit_titles=$(git log --pretty=format:'%s:%at' "$sha...${{ github.sha }}" -- "packages/$package" |
-            sort -t ':' -k 1,1 -k 3,3 |
-            sed -nr 's/:[0-9]*$//p')
-            if [ -n "$commit_titles" ]; then
-              updated_packages+=("$package_sha")
-            fi
-          done <<< "$decoded"
-          updated_packages=$(jq -cn '$ARGS.positional' --args "${updated_packages[@]}")
-          echo "::set-output name=package-shas::$updated_packages"
-
-  changelog:
-    runs-on: ubuntu-latest
-    needs: collect-updates
-    strategy:
-      matrix:
-        package-sha: ${{fromJson(needs.collect-updates.outputs.update-packages)}}
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Generate new version
-        id: generate-new
-        run: |
-          package=$(echo "${{ matrix.package-sha }}" | cut -d " " -f 1)
-          sha=$(echo "${{ matrix.package-sha }}" | cut -d " " -f 2)
-          commit_titles=$(git log --pretty=format:'%s:%at' "$sha...${{ github.sha }}" -- "packages/$package" |
-            sort -t ':' -k 1,1 -k 3,3 |
-            sed -nr 's/:[0-9]*$//p')
+          commit_titles=$(git log --pretty=format:'%s:%at' "${{ steps.get-prev.outputs.sha }}...${{ github.sha }}" -- "packages/$PACKAGE" |
+          sort -t ':' -k 1,1 -k 3,3 |
+          sed -nr 's/:[0-9]*$//p')
           breaking_flags=$(echo "$commit_titles" |
             sed -nr 's/^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p')
           feature_updates=$(echo "$commit_titles" |
             sed -nr 's/^chore(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
-            sed 's/^/+ /g' |
             sed ':start $!{N; b start}; s/\n/\\n/g')
           fix_updates=$(echo "$commit_titles" |
             sed -nr 's/^test(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
-            sed 's/^/+ /g' |
             sed ':start $!{N; b start}; s/\n/\\n/g')
           new_version="0.1.0"
-          if git tag --points-at "$sha" | grep -Eq "$package\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)"; then
-            current_version=$(git tag --points-at "$sha" | sed -rn "s/$package\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p")
+          if git tag --points-at "${{ steps.get-prev.outputs.sha }}" | grep -Eq "$PACKAGE\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)"; then
+            current_version=$(git tag --points-at "${{ steps.get-prev.outputs.sha }}" | sed -rn "s/$PACKAGE\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p")
             IFS=. read -r major minor patch <<< $current_version
             if [ -n "$breaking_flags" ]; then
               if [ $major -eq 0 ]; then
@@ -101,51 +64,80 @@ jobs:
               new_version="$major.$minor.$((patch+1))"
             fi
           fi
-          new_tag="$package/v$new_version"
+          echo "::set-output name=version::$new_version"
+          echo "::set-output name=feature::$feature_updates"
+          echo "::set-output name=fix::$fix_updates"
 
-          if [ -n "$feature_updates" ]; then
-            features_note="### 🚀 Features\n$feature_updates"
+  commit-update:
+    runs-on: ubuntu-latest
+    needs: determine-next
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Generate changelog
+        id: generate-changelog
+        env:
+          TZ: 'Asia/Tokyo'
+          PACKAGE: ${{ github.event.inputs.package }}
+        run: |
+          body=''
+          if [ -n "${{ needs.determine-next.outputs.feature-log }}" ]; then
+            body+="### 🚀 Features\n$(echo "${{ needs.determine-next.outputs.feature-log }}" |
+              sed -r 's/\\n/\n/g' |
+              sed 's/^/+ /g' |
+              sed ':start $!{N; b start}; s/\n/\\n/g')"
           fi
-          if [ -n "$fix_updates" ]; then
-            fixes_note="### 🐛 Bug Fixes\n$fix_updates"
+          if [ -n "${{ needs.determine-next.outputs.fix-log }}" ]; then
+            if  [ -n "${{ needs.determine-next.outputs.feature-log }}" ]; then
+              body+='\n\n'
+            fi
+            body+="### 🐛 Bug Fixes\n$(echo "${{ needs.determine-next.outputs.fix-log }}" |
+              sed -r 's/\\n/\n/g' |
+              sed 's/^/+ /g' |
+              sed ':start $!{N; b start}; s/\n/\\n/g')"
           fi
-          header="$new_tag - $(date +'%Y-%m-%d')"
-          body="$features_note\n\n$fixes_note"
-          echo "::set-output name=version::$new_tag"
-          echo "::set-output name=changelog-header::$header"
-          echo "::set-output name=changelog-body::$body"
+          header="$PACKAGE/v${{ needs.determine-next.outputs.version }} - $(date +'%Y-%m-%d')"
+          echo "::set-output name=header::$header"
+          echo "::set-output name=body::$body"
       - name: Create new branch
         id: create-branch
+        env:
+          PACKAGE: ${{ github.event.inputs.package }}
         run: |
-          branch="release/${{ steps.generate-new.outputs.version }}"
+          branch="release/$PACKAGE/v${{ needs.determine-next.outputs.version }}"
           git checkout -b "$branch"
           echo "::set-output name=branch::$branch"
       - name: Update CHANGELOG.md
         run: |
-          changelog="## ${{ steps.generate-new.outputs.changelog-header }}\n\n${{ steps.generate-new.outputs.changelog-body }}\n"
+          changelog="## ${{ steps.generate-changelog.outputs.header }}"
+          if [ -n "${{ steps.generate-changelog.outputs.body }}" ]; then
+            changelog+="\n\n${{ steps.generate-changelog.outputs.body }}"
+          fi
+          changelog+='\n'
           sed -i "/insert\-new\-changelog\-here/a $changelog" ./CHANGELOG.md
-          cat ./CHANGELOG.md
       - name: Update package.json
+        env:
+          PACKAGE: ${{ github.event.inputs.package }}
         run: |
-          package=$(echo "${{ matrix.package-sha }}" | cut -d " " -f 1)
-          current_version=$(node -p "require('./packages/$package/package.json').version")
-          new_version=$(echo "${{ steps.generate-new.outputs.version }}" | sed "s/^$package\/v//")
-          sed -i "s/$current_version/$new_version/" "./packages/$package/package.json"
-          cat "./packages/$package/package.json"
+          current_version=$(node -p "require('./packages/$PACKAGE/package.json').version")
+          sed -i "s/$current_version/${{ needs.determine-next.outputs.version }}/" "./packages/$PACKAGE/package.json"
       - name: Commit and Push
         id: commit
         env:
           TZ: 'Asia/Tokyo'
+          PACKAGE: ${{ github.event.inputs.package }}
         run: |
-          package=$(echo "${{ matrix.package-sha }}" | cut -d " " -f 1)
-          new_version=$(echo "${{ steps.generate-new.outputs.version }}" | sed "s/^$package\/v//")
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add ./CHANGELOG.md "./packages/$package/package.json"
-          git commit --author='i5irin <contact@i5ir.in>' -m "chore($package): update version and changelog to $new_version" --no-verify
-          git tag "${{ steps.generate-new.outputs.version }}"
+          git add ./CHANGELOG.md "./packages/$PACKAGE/package.json"
+          git commit --author='i5irin <contact@i5ir.in>' -m "chore($PACKAGE): update version and changelog to ${{ needs.determine-next.outputs.version }}" --no-verify
+          git tag "$PACKAGE/v${{ needs.determine-next.outputs.version }}"
           git push origin HEAD:"${{ steps.create-branch.outputs.branch }}" --follow-tags
       - name: Create release PR
-        run: gh pr create -B "main" -t "Release ${{ steps.generate-new.outputs.version }}" -b ""
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE: ${{ github.event.inputs.package }}
+        run: gh pr create -B "main" -t "Release $PACKAGE/v${{ needs.determine-next.outputs.version }}" -b ""
