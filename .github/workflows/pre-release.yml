@@ -45,7 +45,7 @@ jobs:
           while IFS= read -r package_sha; do
             package=$(echo "$package_sha" | cut -d " " -f 1)
             sha=$(echo "$package_sha" | cut -d " " -f 2)
-            commit_titles=$(git log --pretty=format:'%s:%at' "$sha...9e8df06455d5ddb071b31e314fd530eef54d9ff4" -- "packages/$package" |
+            commit_titles=$(git log --pretty=format:'%s:%at' "$sha...${{ github.sha }}" -- "packages/$package" |
             sort -t ':' -k 1,1 -k 3,3 |
             sed -nr 's/:[0-9]*$//p')
             if [ -n "$commit_titles" ]; then
@@ -72,7 +72,7 @@ jobs:
         run: |
           package=$(echo "${{ matrix.package-sha }}" | cut -d " " -f 1)
           sha=$(echo "${{ matrix.package-sha }}" | cut -d " " -f 2)
-          commit_titles=$(git log --pretty=format:'%s:%at' "$sha...9e8df06455d5ddb071b31e314fd530eef54d9ff4" -- "packages/$package" |
+          commit_titles=$(git log --pretty=format:'%s:%at' "$sha...${{ github.sha }}" -- "packages/$package" |
             sort -t ':' -k 1,1 -k 3,3 |
             sed -nr 's/:[0-9]*$//p')
           breaking_flags=$(echo "$commit_titles" |
