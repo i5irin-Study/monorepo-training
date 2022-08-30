@@ -8,6 +8,9 @@ on:
 jobs:
   determine-next:
     runs-on: ubuntu-latest
+    env:
+      PACKAGE: ${{ github.event.inputs.package }}
+      IS_DEV: true
     outputs:
       version: ${{ steps.get-next.outputs.version }}
       feature-log: ${{ steps.get-next.outputs.feature }}
@@ -20,8 +23,6 @@ jobs:
           fetch-depth: 0
       - name: Get preview version SHA
         id: get-prev
-        env:
-          PACKAGE: ${{ github.event.inputs.package }}
         run: |
           latest_version=$(git tag |
           sed -rn "s/$PACKAGE\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p" |
@@ -34,9 +35,6 @@ jobs:
           echo "::set-output name=sha::$prev_version_sha"
       - name: Get next version
         id: get-next
-        env:
-          PACKAGE: ${{ github.event.inputs.package }}
-          IS_DEV: true
         run: |
           commit_titles=$(git log --pretty=format:'%s:%at' "${{ steps.get-prev.outputs.sha }}...${{ github.sha }}" -- "packages/$PACKAGE" |
           sort -t ':' -k 1,1 -k 3,3 |
@@ -77,6 +75,9 @@ jobs:
 
   commit-update:
     runs-on: ubuntu-latest
+    env:
+      TZ: 'Asia/Tokyo'
+      PACKAGE: ${{ github.event.inputs.package }}
     needs: determine-next
     if: github.ref == 'refs/heads/main'
     steps:
@@ -86,9 +87,6 @@ jobs:
           fetch-depth: 0
       - name: Generate changelog
         id: generate-changelog
-        env:
-          TZ: 'Asia/Tokyo'
-          PACKAGE: ${{ github.event.inputs.package }}
         run: |
           body=''
           if [ -n "${{ needs.determine-next.outputs.feature-log }}" ]; then
@@ -111,8 +109,6 @@ jobs:
           echo "::set-output name=body::$body"
       - name: Create new branch
         id: create-branch
-        env:
-          PACKAGE: ${{ github.event.inputs.package }}
         run: |
           branch="release/$PACKAGE/v${{ needs.determine-next.outputs.version }}"
           git checkout -b "$branch"
@@ -126,16 +122,11 @@ jobs:
           changelog+='\n'
           sed -i "/insert\-new\-changelog\-here/a $changelog" ./CHANGELOG.md
       - name: Update package.json
-        env:
-          PACKAGE: ${{ github.event.inputs.package }}
         run: |
           current_version=$(node -p "require('./packages/$PACKAGE/package.json').version")
           sed -i "s/$current_version/${{ needs.determine-next.outputs.version }}/" "./packages/$PACKAGE/package.json"
       - name: Commit and Push
         id: commit
-        env:
-          TZ: 'Asia/Tokyo'
-          PACKAGE: ${{ github.event.inputs.package }}
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -146,5 +137,4 @@ jobs:
       - name: Create release PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE: ${{ github.event.inputs.package }}
         run: gh pr create -B "main" -t "Release $PACKAGE/v${{ needs.determine-next.outputs.version }}" -b ""
