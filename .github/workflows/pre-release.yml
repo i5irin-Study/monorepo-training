@@ -13,8 +13,7 @@ jobs:
       IS_DEV: true
     outputs:
       version: ${{ steps.get-next.outputs.version }}
-      feature-log: ${{ steps.get-next.outputs.feature }}
-      fix-log: ${{ steps.get-next.outputs.fix }}
+      prev-sha: ${{ steps.get-prev.outputs.sha }}
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
@@ -48,15 +47,7 @@ jobs:
             args+=(--develop)
           fi
           new_version=$(echo "$commit_titles" | bash <( curl -Ss https://raw.githubusercontent.com/i5irin/sembump/v0.1.0/sembump.sh ) "${args[@]}")
-          feature_updates=$(echo "$commit_titles" |
-            sed -nr 's/^chore(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
-            sed ':start $!{N; b start}; s/\n/\\n/g')
-          fix_updates=$(echo "$commit_titles" |
-            sed -nr 's/^test(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
-            sed ':start $!{N; b start}; s/\n/\\n/g')
           echo "::set-output name=version::$new_version"
-          echo "::set-output name=feature::$feature_updates"
-          echo "::set-output name=fix::$fix_updates"
 
   commit-update:
     runs-on: ubuntu-latest
@@ -73,18 +64,27 @@ jobs:
       - name: Generate changelog
         id: generate-changelog
         run: |
+          commit_titles=$(git log --pretty=format:'%s:%at' "${{ needs.determine-next.outputs.prev-sha }}...${{ github.sha }}" -- "packages/$PACKAGE" |
+          sort -t ':' -k 1,1 -k 3,3 |
+          sed -nr 's/:[0-9]*$//p')
+          feature_updates=$(echo "$commit_titles" |
+            sed -nr 's/^chore(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
+            sed ':start $!{N; b start}; s/\n/\\n/g')
+          fix_updates=$(echo "$commit_titles" |
+            sed -nr 's/^test(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
+            sed ':start $!{N; b start}; s/\n/\\n/g')
           body=''
-          if [ -n "${{ needs.determine-next.outputs.feature-log }}" ]; then
-            body+="### 🚀 Features\n$(echo "${{ needs.determine-next.outputs.feature-log }}" |
+          if [ -n "$feature_updates" ]; then
+            body+="### 🚀 Features\n$(echo "$feature_updates" |
               sed -r 's/\\n/\n/g' |
               sed 's/^/+ /g' |
               sed ':start $!{N; b start}; s/\n/\\n/g')"
           fi
-          if [ -n "${{ needs.determine-next.outputs.fix-log }}" ]; then
-            if  [ -n "${{ needs.determine-next.outputs.feature-log }}" ]; then
+          if [ -n "fix_updates" ]; then
+            if  [ -n "$feature_updates" ]; then
               body+='\n\n'
             fi
-            body+="### 🐛 Bug Fixes\n$(echo "${{ needs.determine-next.outputs.fix-log }}" |
+            body+="### 🐛 Bug Fixes\n$(echo "$fix_updates" |
               sed -r 's/\\n/\n/g' |
               sed 's/^/+ /g' |
               sed ':start $!{N; b start}; s/\n/\\n/g')"
