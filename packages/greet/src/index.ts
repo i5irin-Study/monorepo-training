@@ -3,5 +3,5 @@ export type Person = {
 };
 
 export function greet(guest: Person): string {
-  return `Hey ${guest.name}`;
+  return `Hey ${guest.name} !`;
 }
