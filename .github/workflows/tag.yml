@@ -28,7 +28,7 @@ jobs:
       - name: Get next version
         id: get-next
         run: |
-          git log --oneline
+          git tag
           if [ "$IS_DEV" = "true" ]; then
             new_version=$(bash <(curl -Ss https://raw.githubusercontent.com/i5irin/sembump/v0.4.0/sembump.sh) -d -p "$PACKAGE/v" -w "packages/$PACKAGE")
           else
