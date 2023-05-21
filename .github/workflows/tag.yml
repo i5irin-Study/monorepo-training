@@ -34,6 +34,7 @@ jobs:
           else
             new_version=$(bash <(curl -Ss https://raw.githubusercontent.com/i5irin/sembump/v0.4.0/sembump.sh) -p "$PACKAGE/v" -w "packages/$PACKAGE")
           fi
+          echo "$new_version"
           echo "::set-output name=version::$new_version"
   tag:
     runs-on: ubuntu-latest
