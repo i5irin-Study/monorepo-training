@@ -46,4 +46,4 @@ jobs:
       - name: Put tag
         run: |
           git tag "${{ needs.determine-next.outputs.version }}"
-          git push origin main --follow-tags
+          git push origin main --tags
