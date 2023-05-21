@@ -35,7 +35,7 @@ jobs:
             new_version=$(bash <(curl -Ss https://raw.githubusercontent.com/i5irin/sembump/v0.4.0/sembump.sh) -p "$PACKAGE/v" -w "packages/$PACKAGE")
           fi
           echo "$new_version"
-          echo "::set-output name=version::$new_version"
+          echo "version=$new_version" >> $GITHUB_OUTPUT
   tag:
     runs-on: ubuntu-latest
     needs: determine-next
