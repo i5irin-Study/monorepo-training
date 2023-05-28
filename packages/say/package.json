@@ -31,5 +31,8 @@
   "homepage": "https://github.com/i5irin-Study/monorepo-training#readme",
   "files": [
     "dist"
-  ]
+  ],
+  "dependencies": {
+    "@i5irin-monorepo-training/greet": "^0.1.0"
+  }
 }
