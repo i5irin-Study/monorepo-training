@@ -36,7 +36,7 @@ jobs:
           git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }} |
           sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
           sort -u |
-          xargs -I WORKSPACE npm run eslint -w WORKSPACE
+          xargs -I WORKSPACE sh -c 'npm run eslint -w WORKSPACE || exit 1'
   test:
     runs-on: ubuntu-latest
     steps:
@@ -61,5 +61,5 @@ jobs:
           git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }} |
           sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
           sort -u |
-          xargs -I WORKSPACE npm run test -w WORKSPACE
+          xargs -I WORKSPACE sh -c 'npm run test -w WORKSPACE || exit 1'
         shell: bash
