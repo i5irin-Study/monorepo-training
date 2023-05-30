@@ -22,8 +22,8 @@ jobs:
       - name: Get SHA
         id: get-sha
         run: |
-          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
-          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+          echo "head_sha=$(git rev-parse "remotes/origin/${{ github.head_ref }}")" >> $GITHUB_OUTPUT
+          echo "base_sha=$(git rev-parse "remotes/origin/${{ github.base_ref }}")" >> $GITHUB_OUTPUT
       - run: npm ci
       - name: Lint other than packages/
         run: |
@@ -54,8 +54,8 @@ jobs:
       - name: Get SHA
         id: get-sha
         run: |
-          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
-          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+          echo "head_sha=$(git rev-parse "remotes/origin/${{ github.head_ref }}")" >> $GITHUB_OUTPUT
+          echo "base_sha=$(git rev-parse "remotes/origin/${{ github.base_ref }}")" >> $GITHUB_OUTPUT
       - run: npm ci
       - run: |
           git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }} |
