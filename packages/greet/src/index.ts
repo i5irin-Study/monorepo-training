@@ -7,5 +7,5 @@ export function greet(guest: Person): string {
 }
 
 export function greetInJapanese(guest: Person): string {
-  return `こんにちは! ${guest.name} !`;
+  return `こんにちは ${guest.name} !`;
 }
