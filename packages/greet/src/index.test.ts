@@ -7,6 +7,6 @@ describe('greet', () => {
   });
   it('should return greetings to the given name in Japanese', () => {
     expect.assertions(1);
-    expect(greetInJapanese({ name: 'i5irin' })).toBe('こんにちは! i5irin !');
+    expect(greetInJapanese({ name: 'i5irin' })).toBe('こんにちは! i5irin');
   });
 });
