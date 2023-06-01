@@ -58,7 +58,4 @@ jobs:
           echo "base_sha=$(git rev-parse "remotes/origin/${{ github.base_ref }}")" >> $GITHUB_OUTPUT
       - run: npm ci
       - run: |
-          git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }} |
-          sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
-          sort -u |
-          xargs -I WORKSPACE npm run test -w WORKSPACE
+          exit 1
