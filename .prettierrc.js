@@ -1,4 +1,3 @@
-const t = '';
 module.exports = {
   semi: true,
   singleQuote: true,
