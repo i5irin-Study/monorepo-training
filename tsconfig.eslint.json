@@ -5,7 +5,7 @@
     ".eslintrc.base.js",
     ".prettierrc.js",
     "commitlint.config.js",
-    "rollup.config.js",
+    "rollup.config.mjs",
     "jest.config.js",
   ],
 }
