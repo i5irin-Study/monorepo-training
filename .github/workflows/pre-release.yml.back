@@ -1,0 +1,115 @@
+name: pre-release
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package name to be release'
+        required: true
+jobs:
+  determine-next:
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE: ${{ github.event.inputs.package }}
+      IS_DEV: true
+    outputs:
+      version: ${{ steps.get-next.outputs.version }}
+      prev-sha: ${{ steps.get-prev.outputs.sha }}
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Get preview version SHA
+        id: get-prev
+        run: |
+          latest_version=$(git tag |
+          sed -rn "s/$PACKAGE\/v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$)/\1/p" |
+          sort -Vr |
+          head -1)
+          prev_version_sha=$(git rev-list --max-parents=0 HEAD)
+          if [ -n "$latest_version" ]; then
+            prev_version_sha=$(git rev-parse "$PACKAGE/v$latest_version")
+          fi
+          echo "::set-output name=sha::$prev_version_sha"
+      - name: Get next version
+        id: get-next
+        run: |
+          echo aaa
+          bash <(curl -Ss https://raw.githubusercontent.com/i5irin/sembump/monorepo/sembump.sh) -d -p greet/v -w packages/greet
+          # echo "::set-output name=version::$new_version"
+
+  # commit-update:
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     TZ: 'Asia/Tokyo'
+  #     PACKAGE: ${{ github.event.inputs.package }}
+  #   needs: determine-next
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v3
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Generate changelog
+  #       id: generate-changelog
+  #       run: |
+  #         commit_titles=$(git log --pretty=format:'%s:%at' "${{ needs.determine-next.outputs.prev-sha }}...${{ github.sha }}" -- "packages/$PACKAGE" |
+  #         sort -t ':' -k 1,1 -k 3,3 |
+  #         sed -nr 's/:[0-9]*$//p')
+  #         feature_updates=$(echo "$commit_titles" |
+  #           sed -nr 's/^chore(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
+  #           sed ':start $!{N; b start}; s/\n/\\n/g')
+  #         fix_updates=$(echo "$commit_titles" |
+  #           sed -nr 's/^test(\([a-zA-Z_0-9]+\))?(!)?: (.*)$/\3/p' |
+  #           sed ':start $!{N; b start}; s/\n/\\n/g')
+  #         body=''
+  #         if [ -n "$feature_updates" ]; then
+  #           body+="### 🚀 Features\n$(echo "$feature_updates" |
+  #             sed -r 's/\\n/\n/g' |
+  #             sed 's/^/+ /g' |
+  #             sed ':start $!{N; b start}; s/\n/\\n/g')"
+  #         fi
+  #         if [ -n "fix_updates" ]; then
+  #           if  [ -n "$feature_updates" ]; then
+  #             body+='\n\n'
+  #           fi
+  #           body+="### 🐛 Bug Fixes\n$(echo "$fix_updates" |
+  #             sed -r 's/\\n/\n/g' |
+  #             sed 's/^/+ /g' |
+  #             sed ':start $!{N; b start}; s/\n/\\n/g')"
+  #         fi
+  #         header="$PACKAGE/v${{ needs.determine-next.outputs.version }} - $(date +'%Y-%m-%d')"
+  #         echo "::set-output name=header::$header"
+  #         echo "::set-output name=body::$body"
+  #     - name: Create new branch
+  #       id: create-branch
+  #       run: |
+  #         branch="release/$PACKAGE/v${{ needs.determine-next.outputs.version }}"
+  #         git checkout -b "$branch"
+  #         echo "::set-output name=branch::$branch"
+  #     - name: Update CHANGELOG.md
+  #       run: |
+  #         changelog="## ${{ steps.generate-changelog.outputs.header }}"
+  #         if [ -n "${{ steps.generate-changelog.outputs.body }}" ]; then
+  #           changelog+="\n\n${{ steps.generate-changelog.outputs.body }}"
+  #         fi
+  #         changelog+='\n'
+  #         sed -i "/insert\-new\-changelog\-here/a $changelog" ./CHANGELOG.md
+  #     - name: Update package.json
+  #       run: |
+  #         current_version=$(node -p "require('./packages/$PACKAGE/package.json').version")
+  #         sed -i "s/$current_version/${{ needs.determine-next.outputs.version }}/" "./packages/$PACKAGE/package.json"
+  #     - name: Commit and Push
+  #       id: commit
+  #       run: |
+  #         git config user.name github-actions[bot]
+  #         git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+  #         git add ./CHANGELOG.md "./packages/$PACKAGE/package.json"
+  #         git commit --author='i5irin <contact@i5ir.in>' -m "chore($PACKAGE): update version and changelog to ${{ needs.determine-next.outputs.version }}" --no-verify
+  #         git tag "$PACKAGE/v${{ needs.determine-next.outputs.version }}"
+  #         git push origin HEAD:"${{ steps.create-branch.outputs.branch }}" --follow-tags
+  #     - name: Create release PR
+  #       env:
+  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: gh pr create -B "main" -t "Release $PACKAGE/v${{ needs.determine-next.outputs.version }}" -b ""

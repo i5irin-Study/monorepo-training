@@ -13,6 +13,6 @@ describe('say', () => {
   });
   it('should equal yoroshiku message', () => {
     expect.assertions(1);
-    expect(yoroshiku).toBe('こんにちは i5irinさん ! よろしくね。');
+    expect(yoroshiku).toBe('こんにちは! i5irinさん ! よろしくねー');
   });
 });

@@ -1,0 +1,103 @@
+name: merge-check
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+  workflow_call:
+    inputs:
+      from:
+        required: true
+        type: string
+      to:
+        required: true
+        type: string
+jobs:
+  get-changed-files:
+    runs-on: ubuntu-latest
+    outputs:
+      all:
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fetch necessary commits for pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          commits=${{ github.event.pull_request.commits }}
+          if [[ -n "$commits" ]]; then
+            git fetch --depth="$(( commits + 1 ))"
+          fi
+          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
+          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+      - name: Fetch commits
+        if: github.event_name == 'workflow_call'
+        run: |
+          git fetch
+          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
+          echo "::set-output name=tag_sha::$(git rev-parse ${{ inputs.prev-tag }})"
+      - name: Get SHA
+        id: get-sha
+        run: |
+          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
+          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+      - name: Diff
+        id: diff
+        run: |
+          changed_files=$(git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }})
+          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16.15.1
+          cache: 'npm'
+      - name: Fetch necessary commits
+        run: |
+          commits=${{ github.event.pull_request.commits }}
+          if [[ -n "$commits" ]]; then
+            git fetch --depth="$(( commits + 1 ))"
+          fi
+      - name: Get SHA
+        id: get-sha
+        run: |
+          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
+          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+      - run: npm ci
+      - name: Lint other than packages/
+        run: |
+          changed_files=$(git diff --name-only ${{ steps.get_sha.outputs.base_sha }} ${{ steps.get_sha.outputs.head_sha }})
+          if [ $(echo "$changed_files" | grep -vc '^packages\/.*\/.*$') -gt 0 ]; then
+            npm run eslint
+          fi
+      - name: Lint packages/
+        run: |
+          git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }} |
+          sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
+          sort -u |
+          xargs -I WORKSPACE npm run eslint -w WORKSPACE
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16.15.1
+          cache: 'npm'
+      - name: Fetch necessary commits
+        run: |
+          commits=${{ github.event.pull_request.commits }}
+          if [[ -n "$commits" ]]; then
+            git fetch --depth="$(( commits + 1 ))"
+          fi
+      - name: Get SHA
+        id: get-sha
+        run: |
+          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
+          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+      - run: npm ci
+      - run: |
+          git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }} |
+          sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
+          sort -u |
+          xargs -I WORKSPACE npm run test -w WORKSPACE

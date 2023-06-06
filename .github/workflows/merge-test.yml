@@ -2,7 +2,8 @@ name: merge-check
 on:
   pull_request:
     branches:
-      - 'main'
+      - main
+    types: [opened, synchronize, reopened]
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -10,7 +11,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: 16.15.1
+          node-version: 20.2.0
           cache: 'npm'
       - name: Fetch necessary commits
         run: |
@@ -21,8 +22,8 @@ jobs:
       - name: Get SHA
         id: get-sha
         run: |
-          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
-          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+          echo "head_sha=$(git rev-parse "remotes/origin/${{ github.head_ref }}")" >> $GITHUB_OUTPUT
+          echo "base_sha=$(git rev-parse "remotes/origin/${{ github.base_ref }}")" >> $GITHUB_OUTPUT
       - run: npm ci
       - name: Lint other than packages/
         run: |
@@ -35,14 +36,15 @@ jobs:
           git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }} |
           sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
           sort -u |
-          xargs -I WORKSPACE npm run eslint -w WORKSPACE
+          # TODO: Replace the command with `npm run eslint -w WORKSPACE --short-circut` when the issue(https://github.com/npm/rfcs/issues/575) is resolved.
+          xargs -I WORKSPACE npm run eslint --prefix WORKSPACE
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: 16.15.1
+          node-version: 20.2.0
           cache: 'npm'
       - name: Fetch necessary commits
         run: |
@@ -53,11 +55,12 @@ jobs:
       - name: Get SHA
         id: get-sha
         run: |
-          echo "::set-output name=head_sha::$(git rev-parse "remotes/origin/${{ github.head_ref }}")"
-          echo "::set-output name=base_sha::$(git rev-parse "remotes/origin/${{ github.base_ref }}")"
+          echo "head_sha=$(git rev-parse "remotes/origin/${{ github.head_ref }}")" >> $GITHUB_OUTPUT
+          echo "base_sha=$(git rev-parse "remotes/origin/${{ github.base_ref }}")" >> $GITHUB_OUTPUT
       - run: npm ci
       - run: |
           git diff --name-only ${{ steps.get-sha.outputs.base_sha }} ${{ steps.get-sha.outputs.head_sha }} |
           sed -nr 's/(^packages\/[^\/|.]*)\/.*$/\1/p' |
           sort -u |
-          xargs -I WORKSPACE npm run test -w WORKSPACE
+          # TODO: Replace the command with `npm run test -w WORKSPACE --short-circut` when the issue(https://github.com/npm/rfcs/issues/575) is resolved.
+          xargs -I WORKSPACE npm run test --prefix WORKSPACE

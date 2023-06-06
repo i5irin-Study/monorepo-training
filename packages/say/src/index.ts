@@ -11,6 +11,6 @@ export const messageAppendText = `${greet({
 
 export const yoroshiku = `${greetInJapanese({
   name: 'i5irinさん',
-})} よろしくね。`;
+})} よろしくねー`;
 
 export default message;
